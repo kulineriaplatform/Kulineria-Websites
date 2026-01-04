@@ -109,20 +109,49 @@ export default function UMKMAuthPage() {
           <TabsContent value="register">
             <Card className="p-8 bg-white rounded-[32px] border-none shadow-xl">
               <form onSubmit={handleRegister} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="Nama Pemilik" className="rounded-xl" value={regData.name} onChange={(e) => setRegData({...regData, name: e.target.value})} required />
-                  <Input placeholder="Nama Usaha" className="rounded-xl" value={regData.nama_usaha} onChange={(e) => setRegData({...regData, nama_usaha: e.target.value})} required />
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Input placeholder="Nama Pemilik" className="rounded-xl" value={regData.name} onChange={(e) => setRegData({...regData, name: e.target.value})} required />
+                      {fieldErrors.name && <p className="text-[10px] text-red-500 font-bold ml-1 mt-1">{fieldErrors.name[0]}</p>}
+                    </div>
+                    <div>
+                      <Input placeholder="Nama Usaha" className="rounded-xl" value={regData.nama_usaha} onChange={(e) => setRegData({...regData, nama_usaha: e.target.value})} required />
+                      {fieldErrors.nama_usaha && <p className="text-[10px] text-red-500 font-bold ml-1 mt-1">{fieldErrors.nama_usaha[0]}</p>}
+                    </div>
+                  </div>
                 </div>
-                <Input type="email" placeholder="Email Aktif" className="rounded-xl" value={regData.email} onChange={(e) => setRegData({...regData, email: e.target.value})} required />
-                <div className="relative">
-                  <BadgeCheck className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                  <Input placeholder="NIK KTP (16 Digit)" className="pl-10 rounded-xl" value={regData.nik_ktp} onChange={(e) => setRegData({...regData, nik_ktp: e.target.value})} required maxLength={16} />
+                <div className="space-y-2">
+                  <Input type="email" placeholder="Email Aktif" className="rounded-xl" value={regData.email} onChange={(e) => setRegData({...regData, email: e.target.value})} required />
+                  {fieldErrors.email && <p className="text-[10px] text-red-500 font-bold ml-1">{fieldErrors.email[0]}</p>}
                 </div>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                  <Input placeholder="NPWP Usaha" className="pl-10 rounded-xl" value={regData.npwp} onChange={(e) => setRegData({...regData, npwp: e.target.value})} />
+                <div className="space-y-2">
+                  <div className="relative">
+                    <BadgeCheck className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                    <Input placeholder="NIK KTP (16 Digit)" className="pl-10 rounded-xl" value={regData.nik_ktp} onChange={(e) => setRegData({...regData, nik_ktp: e.target.value})} required maxLength={16} />
+                  </div>
+                  {fieldErrors.nik_ktp && <p className="text-[10px] text-red-500 font-bold ml-1">{fieldErrors.nik_ktp[0]}</p>}
                 </div>
-                <Input type="password" placeholder="Password (Min. 8 Karakter)" className="rounded-xl" value={regData.password} onChange={(e) => setRegData({...regData, password: e.target.value})} required />
+                <div className="space-y-2">
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                    <Input placeholder="NPWP Usaha (Opsional)" className="pl-10 rounded-xl" value={regData.npwp} onChange={(e) => setRegData({...regData, npwp: e.target.value})} />
+                  </div>
+                  {fieldErrors.npwp && <p className="text-[10px] text-red-500 font-bold ml-1">{fieldErrors.npwp[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Input type="password" placeholder="Password (Min. 8 Karakter)" className="rounded-xl" value={regData.password} onChange={(e) => setRegData({...regData, password: e.target.value})} required />
+                  {fieldErrors.password && <p className="text-[10px] text-red-500 font-bold ml-1">{fieldErrors.password[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <select value={regData.kategori_usaha} onChange={(e) => setRegData({...regData, kategori_usaha: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:border-[#4e5b31]" required>
+                    <option value="Makanan Berat">Makanan Berat</option>
+                    <option value="Makanan Ringan">Makanan Ringan</option>
+                    <option value="Minuman">Minuman</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                  {fieldErrors.kategori_usaha && <p className="text-[10px] text-red-500 font-bold ml-1">{fieldErrors.kategori_usaha[0]}</p>}
+                </div>
                 <Button disabled={loading} className="w-full py-7 bg-[#4e5b31] hover:bg-[#3a4323] text-white font-bold rounded-2xl text-lg flex gap-2 justify-center shadow-lg">
                   {loading ? "Mendaftar..." : <>Daftar Mitra <ArrowRight size={20} /></>}
                 </Button>

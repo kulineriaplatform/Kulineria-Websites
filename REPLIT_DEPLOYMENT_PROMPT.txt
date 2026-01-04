@@ -1,0 +1,422 @@
+================================================================================
+REPLIT AGENT PROMPT - KULINER NUSANTARA DEPLOYMENT
+================================================================================
+
+Project Name: Kuliner Nusantara - Full Stack Deployment
+
+OBJECTIVE:
+Deploy a full-stack application (Laravel Backend + Next.js Frontend) to Replit with 
+environment (.env) configuration integrated for production.
+
+================================================================================
+TASK 1: SETUP ENVIRONMENT VARIABLES (.env)
+================================================================================
+
+File Location: /backend/.env
+
+Configuration to be applied:
+
+APP_NAME="Kuliner Nusantara"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://[REPLIT_DOMAIN].repl.co
+APP_KEY=base64:bbtZ1qxBdIdVDWg1NR/QQDIbbw6W/ncMXG3zZHyzZWg=
+
+# Frontend Configuration
+FRONTEND_URL=https://[REPLIT_DOMAIN].repl.co
+SANCTUM_STATEFUL_DOMAINS=[REPLIT_DOMAIN].repl.co
+
+# Database (KEEP USING EXISTING DATABASE - DO NOT CHANGE)
+DB_CONNECTION=mysql
+DB_HOST=pgqcrp.h.filess.io
+DB_PORT=61002
+DB_DATABASE=db_kulineria_evidenceam
+DB_USERNAME=db_kulineria_evidenceam
+DB_PASSWORD=f334cf9f689b1ff8494606a7137b14c7910c5b72
+
+# Session Configuration for Production
+SESSION_DRIVER=cookie
+SESSION_DOMAIN=[REPLIT_DOMAIN].repl.co
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=Lax
+SANCTUM_ENCRYPT_COOKIES=true
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=https://[REPLIT_DOMAIN].repl.co
+
+NOTES: 
+- Database connection MUST remain as above (no changes)
+- [REPLIT_DOMAIN] will be automatically replaced with the Replit domain provided
+- APP_ENV must be changed from "local" to "production"
+- APP_DEBUG must be changed from "true" to "false"
+
+================================================================================
+TASK 2: SETUP BACKEND LARAVEL
+================================================================================
+
+Steps:
+
+1. Navigate to backend directory:
+   cd backend
+
+2. Install Composer dependencies:
+   composer install
+
+3. Generate APP_KEY (if not already generated):
+   php artisan key:generate
+
+4. Clear cache configuration:
+   php artisan config:clear
+   php artisan cache:clear
+
+5. Run database migrations:
+   php artisan migrate --force
+
+6. Setup storage symbolic link:
+   php artisan storage:link
+
+7. Start Laravel server on port 8000:
+   php artisan serve --host=0.0.0.0 --port=8000
+
+NOTES:
+- Ensure port 8000 is not used by other applications
+- Server must run in background for Task 3
+- Do not stop this process until frontend is also running
+
+================================================================================
+TASK 3: SETUP FRONTEND NEXT.JS
+================================================================================
+
+File Location: /.env.local (in root project, not in backend)
+
+Configuration to be created:
+
+NEXT_PUBLIC_API_URL=https://[REPLIT_DOMAIN].repl.co/api
+NEXT_PUBLIC_APP_NAME="Kuliner Nusantara"
+
+Steps:
+
+1. From backend directory, return to root project:
+   cd ../
+
+2. Install npm/pnpm dependencies:
+   pnpm install
+   (or: npm install)
+
+3. Build Next.js application:
+   npm run build
+   (or: pnpm build)
+
+4. Start Next.js server on port 3000:
+   npm run start -- -p 3000
+   (or: pnpm start -- -p 3000)
+
+NOTES:
+- Task 2 (Laravel) must already be running before Task 3
+- Both servers must run simultaneously
+- Port 3000 is the default for Next.js
+
+================================================================================
+TASK 4: CONFIGURE REPLIT
+================================================================================
+
+Create/Update the following files in root project:
+
+File Name: replit.nix
+Content:
+
+{ pkgs }: {
+    deps = [
+        pkgs.php
+        pkgs.nodejs
+        pkgs.mysql
+        pkgs.composer
+        pkgs.pnpm
+    ];
+    
+    env = {
+        REPLIT_ENTRYPOINT = "start-server.sh";
+    };
+}
+
+---
+
+File Name: start-server.sh
+Content:
+
+#!/bin/bash
+
+# Start Laravel Backend
+cd backend
+php artisan serve --host=0.0.0.0 --port=8000 &
+BACKEND_PID=$!
+
+# Start Next.js Frontend
+cd ../
+npm run start -- -p 3000 &
+FRONTEND_PID=$!
+
+# Wait for both processes
+wait $BACKEND_PID $FRONTEND_PID
+
+---
+
+Setup steps in Replit Console:
+
+1. Open "Secrets" tab (key icon 🔐)
+2. Add all environment variables from .env as secrets:
+   - APP_NAME
+   - APP_ENV
+   - APP_DEBUG
+   - APP_URL
+   - APP_KEY
+   - FRONTEND_URL
+   - SANCTUM_STATEFUL_DOMAINS
+   - DB_CONNECTION
+   - DB_HOST
+   - DB_PORT
+   - DB_DATABASE
+   - DB_USERNAME
+   - DB_PASSWORD
+   - SESSION_DRIVER
+   - SESSION_DOMAIN
+   - SESSION_SECURE_COOKIE
+   - SESSION_SAME_SITE
+   - SANCTUM_ENCRYPT_COOKIES
+   - CORS_ALLOWED_ORIGINS
+
+3. Replit will automatically inject all secrets into system environment
+
+================================================================================
+TASK 5: TESTING DEPLOYMENT
+================================================================================
+
+After both servers are running, perform testing:
+
+1. Test Backend API:
+   - Open browser: https://[REPLIT_DOMAIN].repl.co/api/health
+   - Expected: JSON response from Laravel API
+
+2. Test Frontend:
+   - Open browser: https://[REPLIT_DOMAIN].repl.co/
+   - Expected: Next.js application loads properly
+
+3. Test Database Connection:
+   - Access endpoints that require database queries
+   - Ensure data can be retrieved from database
+
+4. Test API Connectivity:
+   - Make requests from frontend to backend API
+   - Verify CORS configuration is working properly
+   - Check authentication flow (login/register)
+
+5. Monitor Logs:
+   - View real-time logs in Replit console
+   - Check for error messages
+   - Debug if there are connection issues
+
+NOTES:
+- If errors occur, check .env configuration first
+- Verify database credentials are correct
+- Verify ports do not conflict
+- Check CORS settings if frontend cannot access backend
+
+================================================================================
+EXPLANATION: PRODUCTION/PUBLISH ON REPLIT FOR 24 HOUR UPTIME
+================================================================================
+
+METHOD 1: PUBLISH PROJECT TO REPLIT
+-----------------------------------
+
+1. Open project in Replit
+2. Click "Publish" or "Share" button (top right)
+3. Replit will generate unique domain: https://[PROJECT-NAME].[USERNAME].repl.co
+4. Domain is automatically accessible via Internet
+5. Click "Publish" and get shared link
+
+ADVANTAGES:
+- Free domain
+- Instantly shareable
+- Accessible from anywhere
+
+FREE PLAN LIMITATIONS:
+- Server will pause after 1 hour of inactivity
+- Loading will be slow on first request (wake-up time)
+- Limited storage and resources
+
+---
+
+METHOD 2: ENABLE ALWAYS-ON (RECOMMENDED FOR 24/7)
+--------------------------------------------------
+
+Option A: Replit Hacker Plan ($7/month)
+- Upgrade to Replit Hacker Plan
+- "Always On" feature will enable automatically
+- Server will NOT pause, running 24/7
+- Unlimited published projects
+- Better performance and resources
+
+Option B: Alternative (Free)
+- Use external uptime monitor service (example: UptimeRobot)
+- Set to ping server every 5 minutes
+- Prevent server from pausing due to inactivity
+- Still has delay on first request
+
+---
+
+METHOD 3: CUSTOM DOMAIN (OPTIONAL - PAID)
+------------------------------------------
+
+If you want to use custom domain like www.kuliner-nusantara.com:
+
+1. Subscribe to Replit Hacker Plan
+2. In Replit project settings, find "Custom Domain"
+3. Enter your domain
+4. In your DNS registrar (GoDaddy, Netlify, etc), add:
+   - Type: CNAME
+   - Name: www
+   - Value: [REPLIT_DOMAIN].repl.co
+5. Wait for DNS propagation (5-30 minutes)
+6. Custom domain will be accessible
+
+---
+
+DATABASE URL SETUP (FOR PRODUCTION)
+-----------------------------------
+
+Database used: MySQL at pgqcrp.h.filess.io
+
+Configuration already in place:
+- Host: pgqcrp.h.filess.io
+- Port: 61002
+- Database: db_kulineria_evidenceam
+- Username: db_kulineria_evidenceam
+- Password: f334cf9f689b1ff8494606a7137b14c7910c5b72
+
+This database does NOT need to be changed for Replit deployment, 
+continue using the same configuration.
+
+IMPORTANT: This database will remain accessible from Replit server 
+because it is already hosted in cloud with remote access enabled.
+
+---
+
+MONITORING & LOGS
+-----------------
+
+Replit Console provides real-time monitoring:
+
+1. STDOUT/STDERR Logs:
+   - All console.log, echo, println will be displayed
+   - Laravel logs displayed from storage/logs/
+   - Next.js build logs displayed on startup
+
+2. Check Server Status:
+   - Backend health: curl https://[REPLIT_DOMAIN].repl.co/api/health
+   - Frontend status: curl https://[REPLIT_DOMAIN].repl.co/
+
+3. Performance Monitoring:
+   - Replit dashboard shows CPU usage
+   - Memory usage monitoring
+   - Network traffic stats
+
+================================================================================
+DEPLOYMENT PROCESS SUMMARY
+================================================================================
+
+Stage 1: Fork/Push to GitHub
+- Duration: 2 minutes
+- Action: Push code to repository
+
+Stage 2: Import to Replit
+- Duration: 5 minutes
+- Action: Create new Replit project from GitHub repo
+
+Stage 3: Setup Environment & Dependencies
+- Duration: 10-15 minutes
+- Action: Setup .env, install Composer, install npm packages
+
+Stage 4: Run Migrations & Build
+- Duration: 10-15 minutes
+- Action: php artisan migrate, npm run build
+
+Stage 5: Start Servers
+- Duration: 2-3 minutes
+- Action: Start Laravel backend, start Next.js frontend
+
+Stage 6: Testing & Publish
+- Duration: 5 minutes
+- Action: Test endpoints, publish project
+
+TOTAL TIME: Approximately 45 minutes for production-ready
+
+FINAL RESULT:
+- Replit Domain: https://[PROJECT-NAME].[USERNAME].repl.co
+- Backend accessible: https://[DOMAIN]/api/...
+- Frontend accessible: https://[DOMAIN]/
+- Database connected: pgqcrp.h.filess.io
+- Status: Ready for production (if Hacker Plan for Always-On)
+
+================================================================================
+TIPS & TROUBLESHOOTING
+================================================================================
+
+1. PORT CONFLICT:
+   - If port 8000 or 3000 is already in use, change in command
+   - Example: php artisan serve --host=0.0.0.0 --port=8001
+
+2. DATABASE CONNECTION ERROR:
+   - Test connection: php artisan tinker
+   - In tinker: DB::connection()->getPdo(); (if fails, config error)
+   - Verify credentials in .env
+
+3. CORS ERROR:
+   - Update CORS_ALLOWED_ORIGINS in .env
+   - Ensure SANCTUM_STATEFUL_DOMAINS matches Replit domain
+   - Restart server after updating .env
+
+4. SLOW FIRST LOAD (Free Plan):
+   - Normal behavior for free plan
+   - Replit server is "waking up"
+   - Install UptimeRobot for keep-alive (workaround for free plan)
+
+5. MISSING DEPENDENCIES:
+   - Backend: composer install
+   - Frontend: npm install or pnpm install
+   - Ensure all dependencies are installed before running
+
+6. STORAGE PERMISSION:
+   - Run: php artisan storage:link
+   - Ensure storage/ directory is writable
+
+7. CACHE ISSUES:
+   - Clear all cache: php artisan optimize:clear
+   - Rebuild frontend: npm run build
+
+================================================================================
+NEXT STEPS AFTER DEPLOYMENT
+================================================================================
+
+1. Share Link
+   - Copy Replit publish link and share with team
+   - Test from various devices/browsers
+
+2. Monitor Performance
+   - Watch Replit dashboard for resource usage
+   - Check logs for errors or warnings
+
+3. Backup Configuration
+   - Save .env configuration
+   - Document custom settings used
+
+4. Plan for Production Scale
+   - If high traffic, upgrade to paid Replit plan
+   - Consider dedicated hosting in future
+
+5. Setup CI/CD (Optional)
+   - Replit auto-redeploy on push to GitHub
+   - Configure automatic deployments
+
+================================================================================
+END OF PROMPT
+================================================================================

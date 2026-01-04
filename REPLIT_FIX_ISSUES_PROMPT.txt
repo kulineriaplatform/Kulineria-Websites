@@ -1,0 +1,620 @@
+================================================================================
+REPLIT AGENT PROMPT - FIX CSRF TOKEN & SLOW LOADING ISSUES
+================================================================================
+
+Project Name: Kuliner Nusantara - Production Issue Fix
+
+CRITICAL ISSUES TO FIX:
+1. CSRF Token Mismatch Error (blocking form submissions)
+2. Slow Loading Performance (high ms response time)
+3. Database/API Response Optimization
+
+================================================================================
+TASK 1: FIX CSRF TOKEN MISMATCH ERROR
+================================================================================
+
+ROOT CAUSE:
+- Session configuration not aligned with CORS settings
+- Frontend not sending credentials with requests
+- Cookie same-site policy too restrictive
+
+STEP 1.1: Update Backend .env File
+Location: /backend/.env
+
+Replace these lines:
+
+FROM:
+SESSION_DRIVER=cookie
+SESSION_DOMAIN=127.0.0.1
+SESSION_SECURE_COOKIE=false
+
+TO:
+SESSION_DRIVER=cookie
+SESSION_DOMAIN=.repl.co
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=Lax
+SANCTUM_ENCRYPT_COOKIES=true
+
+ALSO UPDATE:
+CORS_ALLOWED_ORIGINS=https://[REPLIT_DOMAIN].repl.co
+
+NOTE: Replace [REPLIT_DOMAIN] with actual Replit domain when running
+
+STEP 1.2: Update CORS Configuration
+File: /backend/config/cors.php
+
+Find the return array and ensure:
+
+'supports_credentials' => true,
+'allowed_origins' => [
+    'https://' . env('SANCTUM_STATEFUL_DOMAINS'),
+],
+'allowed_methods' => ['*'],
+'allowed_headers' => ['*'],
+'exposed_headers' => ['X-CSRF-TOKEN', 'X-XSRF-TOKEN'],
+'max_age' => 86400,
+
+CRITICAL: 'supports_credentials' => true is REQUIRED for CSRF to work
+
+STEP 1.3: Update Session Configuration
+File: /backend/config/session.php
+
+Find the configuration array and ensure these settings:
+
+'secure' => env('SESSION_SECURE_COOKIE', true),
+'http_only' => true,
+'same_site' => env('SESSION_SAME_SITE', 'Lax'),
+'domain' => env('SESSION_DOMAIN', null),
+'path' => '/',
+
+STEP 1.4: Frontend - Setup CSRF Token Handling
+File: /lib/api-utils.ts
+
+Replace entire file content with:
+
+------BEGIN CODE------
+import axios from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+
+// Create axios instance with credentials
+export const apiClient = axios.create({
+  baseURL: API_URL,
+  withCredentials: true, // CRITICAL: Include cookies in all requests
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  },
+});
+
+// Get CSRF token from backend
+export const getCSRFToken = async () => {
+  try {
+    await apiClient.get('/sanctum/csrf-cookie', {
+      baseURL: process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000',
+    });
+  } catch (error) {
+    console.error('Failed to get CSRF token:', error);
+  }
+};
+
+// Initialize CSRF token on app load
+export const initializeAuth = async () => {
+  await getCSRFToken();
+};
+
+// Request interceptor to ensure CSRF token before each request
+apiClient.interceptors.request.use(
+  async (config) => {
+    // Get fresh CSRF token before each request
+    await getCSRFToken();
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 419) {
+      // Token expired, refresh and retry
+      console.warn('CSRF token expired, refreshing...');
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+------END CODE------
+
+STEP 1.5: Initialize CSRF on App Load
+File: /app/layout.tsx
+
+Add this code inside the root layout component (in useEffect or at top level):
+
+------BEGIN CODE------
+'use client';
+
+import { useEffect } from 'react';
+import { initializeAuth } from '@/lib/api-utils';
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    // Initialize CSRF token when app loads
+    initializeAuth();
+  }, []);
+
+  return (
+    <html>
+      <body>
+        {children}
+      </body>
+    </html>
+  );
+}
+------END CODE------
+
+STEP 1.6: Update API Calls in Components
+For ANY component making POST/PUT/DELETE requests:
+
+FROM (OLD):
+const response = await fetch(endpoint, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data),
+});
+
+TO (NEW):
+import { apiClient } from '@/lib/api-utils';
+
+const response = await apiClient.post(endpoint, data);
+
+Example for login:
+------BEGIN CODE------
+import { apiClient } from '@/lib/api-utils';
+
+export async function loginUser(email: string, password: string) {
+  try {
+    const response = await apiClient.post('/login', {
+      email,
+      password,
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Login failed');
+  }
+}
+------END CODE------
+
+STEP 1.7: Verify CSRF Setup
+After making changes, test with:
+
+1. Open browser console (F12)
+2. Check Network tab
+3. Make login request
+4. Verify:
+   - Request includes "Cookie" header with XSRF-TOKEN
+   - Response includes "Set-Cookie" with session cookie
+   - No 419 (Token Mismatch) errors
+
+================================================================================
+TASK 2: FIX SLOW LOADING & PERFORMANCE ISSUES
+================================================================================
+
+ROOT CAUSE:
+- Backend not cached (config:cache missing)
+- Next.js running in dev mode instead of production
+- No optimization applied
+- Database queries not optimized
+
+STEP 2.1: Optimize Laravel Backend
+Location: /backend terminal
+
+Run these commands sequentially:
+
+1. Clear all caches first:
+   php artisan cache:clear
+   php artisan config:clear
+   php artisan route:clear
+   php artisan view:clear
+
+2. Generate production caches:
+   php artisan config:cache
+   php artisan route:cache
+   php artisan view:cache
+   php artisan optimize
+
+3. Verify caches created:
+   ls -la bootstrap/cache/
+   (should show config.php, routes-v7.php, etc)
+
+STEP 2.2: Update Laravel .env for Production
+File: /backend/.env
+
+Change these settings:
+
+FROM:
+APP_ENV=local
+APP_DEBUG=true
+CACHE_DRIVER=file
+
+TO:
+APP_ENV=production
+APP_DEBUG=false
+CACHE_DRIVER=array
+
+STEP 2.3: Optimize Database Queries
+File: /backend/app/Providers/AppServiceProvider.php
+
+Replace the boot() method with:
+
+------BEGIN CODE------
+public function boot(): void
+{
+    // Enable query optimization in production
+    if ($this->app->isProduction()) {
+        Model::preventLazyLoading(true);
+        Model::preventAccessingMissingAttributes(true);
+    }
+    
+    // Cache database queries for 1 hour
+    DB::listen(function ($query) {
+        if (config('app.debug')) {
+            \Log::debug('Query: ' . $query->sql, $query->bindings);
+        }
+    });
+}
+------END CODE------
+
+STEP 2.4: Build & Optimize Next.js Frontend
+Location: /root project terminal (NOT backend)
+
+Run these commands:
+
+1. Install dependencies:
+   pnpm install
+   (or npm install)
+
+2. Build for production:
+   pnpm build
+   (or npm run build)
+
+3. Start production server:
+   pnpm start -- -p 3000
+   (or npm run start -- -p 3000)
+
+STEP 2.5: Update Next.js Config for Performance
+File: /next.config.mjs
+
+Add/Update with:
+
+------BEGIN CODE------
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // SWC minification (faster than Terser)
+  swcMinify: true,
+  
+  // Compress responses
+  compress: true,
+  
+  // Disable source maps in production
+  productionBrowserSourceMaps: false,
+  
+  // Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+  
+  // Headers for caching
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
+          },
+        ],
+      },
+    ];
+  },
+  
+  // API timeout
+  api: {
+    responseLimit: '4mb',
+  },
+};
+
+export default nextConfig;
+------END CODE------
+
+STEP 2.6: Create Middleware for Response Optimization
+File: /middleware.ts (create new file at root)
+
+------BEGIN CODE------
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+  
+  // Add security headers
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  
+  // Add caching headers for static assets
+  if (request.nextUrl.pathname.startsWith('/_next/static/')) {
+    response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  
+  return response;
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
+------END CODE------
+
+STEP 2.7: Add Request Timeout & Retry Logic
+File: /lib/api-utils.ts (UPDATE the interceptors section)
+
+Add after response interceptor:
+
+------BEGIN CODE------
+// Retry logic for failed requests
+let retryCount = 0;
+const MAX_RETRIES = 3;
+
+apiClient.interceptors.response.use(
+  (response) => {
+    retryCount = 0;
+    return response;
+  },
+  async (error) => {
+    const config = error.config;
+    
+    // Token expired
+    if (error.response?.status === 419) {
+      console.warn('CSRF token expired, refreshing...');
+      window.location.reload();
+      return Promise.reject(error);
+    }
+    
+    // Retry on server errors (5xx) with exponential backoff
+    if (error.response?.status >= 500 && retryCount < MAX_RETRIES) {
+      retryCount++;
+      const delay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return apiClient(config);
+    }
+    
+    retryCount = 0;
+    return Promise.reject(error);
+  }
+);
+------END CODE------
+
+================================================================================
+TASK 3: SETUP REPLIT STARTUP SCRIPT FOR OPTIMIZATION
+================================================================================
+
+File: /start-server.sh (REPLACE with optimized version)
+
+------BEGIN CODE------
+#!/bin/bash
+
+echo "=== Starting Kuliner Nusantara Production Server ==="
+
+# Ensure we're at root directory
+cd "$(dirname "$0")" || exit
+
+# Start Laravel Backend with optimization
+echo "[1/2] Starting Laravel Backend..."
+cd backend
+
+# Pre-flight optimization
+php artisan config:clear 2>/dev/null || true
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Start backend on port 8000
+php -d memory_limit=256M artisan serve --host=0.0.0.0 --port=8000 &
+BACKEND_PID=$!
+echo "Backend PID: $BACKEND_PID"
+
+# Wait for backend to be ready
+sleep 3
+
+# Start Next.js Frontend with optimization
+echo "[2/2] Starting Next.js Frontend..."
+cd ../
+
+# Build frontend (production build)
+echo "Building Next.js application..."
+pnpm install --frozen-lockfile 2>/dev/null || npm install
+pnpm build || npm run build
+
+# Start frontend on port 3000
+pnpm start -- -p 3000 &
+FRONTEND_PID=$!
+echo "Frontend PID: $FRONTEND_PID"
+
+echo ""
+echo "=== Servers Running ==="
+echo "Backend:  http://0.0.0.0:8000"
+echo "Frontend: http://0.0.0.0:3000"
+echo ""
+
+# Wait for both processes
+wait $BACKEND_PID $FRONTEND_PID
+------END CODE------
+
+File: /replit.nix (ENSURE dependencies are correct)
+
+------BEGIN CODE------
+{ pkgs }: {
+    deps = [
+        pkgs.php
+        pkgs.php.extensions.pdo_mysql
+        pkgs.nodejs
+        pkgs.pnpm
+        pkgs.mysql
+        pkgs.composer
+        pkgs.curl
+        pkgs.cacert
+    ];
+    
+    env = {
+        REPLIT_ENTRYPOINT = "start-server.sh";
+        NODE_ENV = "production";
+        PHP_MEMORY_LIMIT = "256M";
+    };
+}
+------END CODE------
+
+================================================================================
+TASK 4: VERIFY & TEST ALL FIXES
+================================================================================
+
+STEP 4.1: Backend Verification
+
+1. Check Laravel cache status:
+   ls -la backend/bootstrap/cache/
+   (should show config.php, routes*.php files)
+
+2. Test backend API:
+   curl https://[REPLIT_DOMAIN].repl.co/api/health
+   (should return 200 OK)
+
+3. Verify CSRF endpoint:
+   curl -i https://[REPLIT_DOMAIN].repl.co/sanctum/csrf-cookie
+   (should return Set-Cookie header)
+
+STEP 4.2: Frontend Verification
+
+1. Check build success:
+   ls -la .next/
+   (should show production build)
+
+2. Test frontend loading:
+   curl https://[REPLIT_DOMAIN].repl.co/
+   (should return HTML page)
+
+3. Check bundle size:
+   pnpm build | grep "○ routes"
+   (should show page sizes)
+
+STEP 4.3: CSRF Token Test
+
+1. Open browser DevTools (F12)
+2. Go to Network tab
+3. Try login form:
+   - Email: test@example.com
+   - Password: password
+4. Check request headers:
+   - Should include "Cookie: XSRF-TOKEN=..."
+   - Should include "X-Requested-With: XMLHttpRequest"
+5. Expected result:
+   - Status: 200 OK (not 419)
+   - Login successful
+
+STEP 4.4: Performance Test
+
+1. Check API response time:
+   time curl https://[REPLIT_DOMAIN].repl.co/api/kuliner
+   (should be < 500ms)
+
+2. Monitor Replit console for:
+   - Memory usage < 80%
+   - No PHP warnings
+   - No database connection errors
+
+3. Check in browser DevTools:
+   - Network tab > XHR requests
+   - Should see response times < 1s
+   - Should see "from cache" for static assets
+
+STEP 4.5: Common Errors & Fixes
+
+ERROR: "CSRF token mismatch"
+FIX: 
+- Ensure withCredentials: true in api-utils.ts
+- Ensure 'supports_credentials' => true in cors.php
+- Check SESSION_SAME_SITE=Lax in .env
+
+ERROR: "419 Token Mismatch"
+FIX:
+- Run: php artisan config:cache
+- Clear browser cookies
+- Refresh page and try again
+
+ERROR: "Slow loading (>2s response)"
+FIX:
+- Check if config:cache was run
+- Verify APP_DEBUG=false
+- Check if route:cache was run
+- Monitor memory: free -h
+
+ERROR: "502 Bad Gateway"
+FIX:
+- Check memory: ps aux | grep php
+- Restart: kill $BACKEND_PID
+- Increase memory: -d memory_limit=512M
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+CRITICAL ORDER (Must do in this order):
+
+1. Update .env files (Task 1.1 & 2.2)
+2. Update config files (Task 1.2, 1.3, 2.5)
+3. Update frontend code (Task 1.4, 1.5, 1.6, 2.6)
+4. Run optimization commands (Task 2.1)
+5. Build frontend (Task 2.4)
+6. Start servers (Task 3)
+7. Test everything (Task 4)
+
+DO NOT START SERVERS UNTIL:
+- All config changes saved
+- All code changes saved
+- All optimization commands run
+
+IMPORTANT REMINDERS:
+
+- CSRF token initialization MUST run on app load
+- Session cookies MUST be secure in production
+- All GET requests should be cached
+- Database queries should use eager loading (select specific columns)
+- Always test in browser DevTools Network tab
+
+REPLIT DOMAIN:
+When servers start, Replit will show domain at top
+Replace [REPLIT_DOMAIN] with actual domain everywhere
+
+================================================================================
+END OF PROMPT
+================================================================================
