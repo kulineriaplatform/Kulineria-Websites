@@ -1,7 +1,50 @@
 // Path: lib/data.ts
 
-export const API_BASE_URL = "http://127.0.0.1:8000/api";
-export const APP_BASE_URL = "http://127.0.0.1:8000";
+// Gunakan environment variable untuk API URL (support localhost dan ngrok)
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    // Client-side: gunakan NEXT_PUBLIC_API_URL dari .env atau fallback ke localhost
+    return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  }
+  return "http://127.0.0.1:8000"; // Server-side fallback
+};
+
+let API_BASE_URL = getApiBaseUrl() + "/api";
+let APP_BASE_URL = getApiBaseUrl();
+
+/**
+ * Auto-detect API URL dari backend (untuk support ngrok)
+ * Jika NEXT_PUBLIC_API_URL tidak set, coba fetch /api/config dari backend
+ */
+export async function initializeApiUrl() {
+  if (typeof window === "undefined") return; // Skip di server-side
+
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envApiUrl) {
+    // Jika sudah di-set via env variable, gunakan itu
+    API_BASE_URL = envApiUrl + "/api";
+    APP_BASE_URL = envApiUrl;
+    return;
+  }
+
+  // Fallback: coba auto-detect dari backend
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/config");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data?.app_url) {
+        API_BASE_URL = json.data.api_base_url;
+        APP_BASE_URL = json.data.app_url;
+        console.log("API URL auto-detected:", APP_BASE_URL);
+      }
+    }
+  } catch (error) {
+    console.warn("Auto-detect API URL gagal, menggunakan default localhost");
+  }
+}
+
+export const getApiBaseUrl2 = () => API_BASE_URL;
+export const getAppBaseUrl = () => APP_BASE_URL;
 
 /**
  * Meminta Cookie CSRF dari Laravel
@@ -24,7 +67,7 @@ export async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
   try {
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${getApiBaseUrl2()}${endpoint}`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
@@ -67,7 +110,7 @@ export async function postToApi(endpoint: string, body: any) {
     await getCsrfToken();
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${getApiBaseUrl2()}${endpoint}`, {
       method: "POST",
       headers: {
         "Accept": "application/json",
@@ -104,7 +147,7 @@ export async function putToApi(endpoint: string, body: any) {
     await getCsrfToken();
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${getApiBaseUrl2()}${endpoint}`, {
       method: "PUT",
       headers: {
         "Accept": "application/json",
@@ -141,7 +184,7 @@ export async function deleteToApi(endpoint: string) {
     await getCsrfToken();
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${getApiBaseUrl2()}${endpoint}`, {
       method: "DELETE",
       headers: {
         "Accept": "application/json",

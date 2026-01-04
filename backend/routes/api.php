@@ -13,6 +13,19 @@ use Illuminate\Support\Facades\Route;
 */
 
 /* --- 1. PUBLIC ROUTES (Tanpa Token) --- */
+
+// PENTING: Endpoint untuk return config aplikasi (termasuk API base URL untuk ngrok)
+Route::get('/config', function () {
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'api_base_url' => config('app.url') . '/api',
+            'app_url' => config('app.url'),
+            'frontend_url' => env('FRONTEND_URL', 'http://localhost:80'),
+        ]
+    ]);
+});
+
 Route::post('/register/visitor', [AuthController::class, 'registerVisitor']);
 Route::post('/register/umkm', [AuthController::class, 'registerUmkm']);
 Route::post('/login', [AuthController::class, 'login']);

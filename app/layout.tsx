@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Lora, Poppins } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
+import ApiInitializer from "@/components/api-initializer"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <body className={`${_lora.variable} ${_poppins.variable} font-sans antialiased`} suppressHydrationWarning>
+        <ApiInitializer />
         {children}
         <Analytics />
       </body>
