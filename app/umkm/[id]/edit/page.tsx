@@ -1,16 +1,9 @@
 "use client"
 
-import { UmkmShell } from "@/components/umkm-shell"
-import { KulinerForm } from "../../kuliner-form"
 import { useParams } from "next/navigation"
+import { KulinerForm } from "../../kuliner-form"
 
-export default function EditPage() {
+export default function EditKulinerPage() {
   const params = useParams()
-  const id = params.id as string
-
-  return (
-    <UmkmShell title="Edit Kuliner">
-      <KulinerForm editId={id} />
-    </UmkmShell>
-  )
+  return <KulinerForm editId={params.id as string} />
 }

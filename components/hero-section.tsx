@@ -29,10 +29,10 @@ export function HeroSection({ kategori, kota, onSearch }: HeroSectionProps) {
   }
 
   return (
-    <section className="w-full bg-gradient-to-b from-background via-muted/10 to-background py-12 md:py-20">
+    <section className="w-full bg-gradient-to-b from-background via-muted/10 to-background py-4 md:py-6 m-0 p-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8 md:mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3 text-balance">
+        <div className="text-center mb-4 md:mb-6">
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-2 text-balance">
             Jelajahi Rasa Autentik Nusantara
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
@@ -40,7 +40,7 @@ export function HeroSection({ kategori, kota, onSearch }: HeroSectionProps) {
           </p>
         </div>
 
-        <div className="max-w-2xl mx-auto mb-6">
+        <div className="max-w-2xl mx-auto mb-2">
           <div className="relative flex items-center gap-2">
             <div className="flex-1 relative">
               <input
@@ -62,7 +62,7 @@ export function HeroSection({ kategori, kota, onSearch }: HeroSectionProps) {
           </div>
         </div>
 
-        <div className="max-w-2xl mx-auto mb-10">
+        <div className="max-w-2xl mx-auto mb-1">
           <div className="flex flex-wrap gap-2 justify-center">
             {suggestions.map((suggestion) => (
               <button
@@ -76,7 +76,7 @@ export function HeroSection({ kategori, kota, onSearch }: HeroSectionProps) {
           </div>
         </div>
 
-        <div className="flex justify-center">
+        <div className="flex justify-center pb-0 mb-0">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-xl font-bold text-lg">
             Jelajah Kuliner
           </Button>

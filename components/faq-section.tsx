@@ -70,7 +70,10 @@ export function FAQSection() {
               </p>
             </div>
           </div>
-          <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl">
+          <Button 
+            onClick={() => window.location.href = '/umkm/auth'}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl cursor-pointer"
+          >
             Portal UMKM
           </Button>
         </div>
